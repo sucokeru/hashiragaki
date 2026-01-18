@@ -28,7 +28,7 @@
         .editor-section { width: 350px; display: flex; flex-direction: column; background: #fff; border-right: 1px solid #333; z-index: 100; }
         .toolbar { 
             padding: 20px 15px; background: #f8f9fa; border-bottom: 1px solid #ddd; 
-            display: flex; flex-direction: column; /* ボタンを縦に並べる */
+            display: flex; flex-direction: column;
         }
         .app-name { font-size: 22px; font-weight: bold; color: #333; margin-bottom: 20px; text-align: center; font-family: 'Yu Mincho', serif; letter-spacing: 0.1em; }
         
@@ -42,16 +42,16 @@
         
         .file-label { background: #28a745; color: white; }
         .pdf-button { background: #007bff; color: white; }
-        .help-button-style { background: #6c757d; color: white; } /* 余白なしで並べる */
+        .help-button-style { background: #6c757d; color: white; }
         
-        #save-status { font-size: 11px; color: #28a745; text-align: right; padding: 5px 0; height: 15px; }
+        #save-status { font-size: 11px; color: #28a745; text-align: right; padding: 5px 0; height: 15px; font-weight: bold; }
         #editor { flex: 1; padding: 15px; font-size: 14px; border: none; border-top: 1px solid #ddd; outline: none; resize: none; line-height: 1.5; background: #fafafa; }
 
         /* プレビュー側レイアウト */
         .preview-section { flex: 1; overflow-y: auto; padding: 40px; background: #525659; display: flex; flex-direction: column; align-items: center; }
         .page { background: white; margin-bottom: 40px; width: 182mm; height: 257mm; box-sizing: border-box; writing-mode: vertical-rl; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.4); flex-shrink: 0; }
-        .content-page { padding-top: 85mm; padding-bottom: 15mm; padding-right: 15mm; padding-left: 30mm; }
-        .content-page::before { content: ""; position: absolute; top: 80mm; right: 15mm; left: 30mm; height: 0; border-bottom: 1.5pt solid black; z-index: 20; pointer-events: none; }
+        .content-page { padding-top: 85mm; padding-bottom: 15mm; padding-right: 15mm; padding-left: 15mm; }
+        .content-page::before { content: ""; position: absolute; top: 80mm; right: 10mm; left: 10mm; height: 0; border-bottom: 1.5pt solid black; z-index: 20; pointer-events: none; }
         .title-page { display: flex !important; justify-content: center !important; align-items: center !important; }
         .title-text { font-size: 28pt; font-weight: bold; letter-spacing: 0.5em; writing-mode: vertical-rl; }
         .line-container { position: absolute; top: 85mm; height: 152mm; width: 11.5pt; }
@@ -78,14 +78,12 @@
 <div class="modal-overlay" id="overlay" onclick="toggleHelp()"></div>
 <div id="help-modal">
     <h3>『ハシラガキ』の使い方</h3>
-    
     <h4>・操作方法</h4>
     <ul>
         <li>「テキストを読み込む」を押す</li>
-        <li>文章を訂正したい場合は左側の下部で書き換える</li>
+        <li>文章を訂正したい場合は左側のエリアで書き換える</li>
         <li>「PDFとして保存・印刷」を押す</li>
     </ul>
-
     <h4>・テキストファイルの書き方</h4>
     <ul>
         <li><b>タイトル:</b> 行頭に「#」をつける</li>
@@ -93,7 +91,6 @@
         <li><b>セリフ:</b> 「」で囲む</li>
         <li><b>ト書き:</b> それ以外の行（自動で6文字下がります）</li>
     </ul>
-    
     <button class="btn help-button-style" onclick="toggleHelp()" style="margin-top: 20px;">閉じる</button>
 </div>
 
@@ -101,14 +98,12 @@
     <div class="editor-section">
         <div class="toolbar">
             <div class="app-name">ハシラガキ</div>
-            
             <label class="btn file-label" for="file-input">テキストを読み込む</label>
             <input type="file" id="file-input" style="display:none" accept=".txt">
             
-            <button class="btn pdf-button" onclick="window.print()">PDFとして保存・印刷</button>
+            <button class="btn pdf-button" id="print-btn">PDFとして保存・印刷</button>
             
             <button class="btn help-button-style" onclick="toggleHelp()">ヘルプ</button>
-            
             <div id="save-status"></div>
         </div>
         <textarea id="editor" placeholder="#タイトルを入力"></textarea>
@@ -120,14 +115,34 @@
     const editor = document.getElementById('editor');
     const previewArea = document.getElementById('preview-area');
     const saveStatus = document.getElementById('save-status');
+    const printBtn = document.getElementById('print-btn');
 
     const SAMPLE_TEXT = `#タイトル\n○ある場所\n　　ここには「ト書き」を書きます。\n\n名前「ここにはセリフを書きます」`;
 
     window.onload = () => {
-        const saved = localStorage.getItem('hashiragaki_data');
+        // localStorage から sessionStorage に変更
+        const saved = sessionStorage.getItem('hashiragaki_data');
         editor.value = saved ? saved : SAMPLE_TEXT;
         render();
     };
+
+    function showNotify(message) {
+        saveStatus.innerText = message;
+        setTimeout(() => {
+            if (saveStatus.innerText === message) saveStatus.innerText = '';
+        }, 4000);
+    }
+
+    printBtn.onclick = () => {
+        window.print();
+        setTimeout(() => { if (saveStatus.innerText === '') showNotify('PDF操作完了'); }, 1000);
+    };
+
+    window.onafterprint = () => { showNotify('PDF操作完了'); };
+
+    window.matchMedia('print').addListener((mql) => {
+        if (!mql.matches) showNotify('PDF操作完了');
+    });
 
     function toggleHelp() {
         const m = document.getElementById('help-modal');
@@ -147,9 +162,10 @@
     }
 
     function saveLocal() {
-        localStorage.setItem('hashiragaki_data', editor.value);
-        saveStatus.innerText = '保存完了';
-        setTimeout(() => { saveStatus.innerText = ''; }, 2000);
+        // localStorage から sessionStorage に変更
+        sessionStorage.setItem('hashiragaki_data', editor.value);
+        saveStatus.innerText = '一時保存完了';
+        setTimeout(() => { if(saveStatus.innerText === '一時保存完了') saveStatus.innerText = ''; }, 2000);
     }
 
     function splitWithKinsoku(fullText, maxChars, indentSize) {
@@ -210,8 +226,19 @@
         let pages = [];
         let current = [];
         for (let i = 0; i < processedLines.length; i++) {
-            current.push(processedLines[i]);
-            if (current.length === maxLines) { pages.push(current); current = []; }
+            const line = processedLines[i];
+            if (line.type === "hashira") {
+                const remainingSpace = maxLines - current.length;
+                if (remainingSpace <= 2) {
+                    pages.push(current);
+                    current = [];
+                }
+            }
+            current.push(line);
+            if (current.length === maxLines) {
+                pages.push(current);
+                current = [];
+            }
         }
         if (current.length > 0) pages.push(current);
 
@@ -224,7 +251,7 @@
             const pageDiv = document.createElement('div');
             pageDiv.className = 'page content-page';
             const rightMargin = 15;
-            const leftMargin = 30;
+            const leftMargin = 15;
             const step = (182 - rightMargin - leftMargin) / (maxLines - 1);
 
             pageLines.forEach((lineObj, lIdx) => {
@@ -252,11 +279,34 @@
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         const reader = new FileReader();
-        reader.onload = (ev) => { editor.value = ev.target.result; render(); saveLocal(); };
+        reader.onload = (ev) => {
+            const rawText = ev.target.result;
+            const lines = rawText.split(/\r?\n/);
+            let processedLines = [];
+            for (let i = 0; i < lines.length; i++) {
+                const currentLine = lines[i];
+                const cleanLine = currentLine.trim();
+                if (cleanLine.startsWith('○')) {
+                    if (processedLines.length > 0 && processedLines[processedLines.length - 1].trim() !== "") {
+                        processedLines.push("");
+                    }
+                    processedLines.push(currentLine);
+                    if (i + 1 < lines.length) {
+                        if (lines[i + 1].trim() !== "") processedLines.push("");
+                    } else {
+                        processedLines.push("");
+                    }
+                } else {
+                    processedLines.push(currentLine);
+                }
+            }
+            editor.value = processedLines.join('\n');
+            render(); 
+            saveLocal(); 
+        };
         reader.readAsText(file, 'UTF-8');
     };
     editor.oninput = () => { render(); saveLocal(); };
 </script>
 </body>
-
 </html>
